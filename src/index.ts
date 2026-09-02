@@ -1,6 +1,7 @@
 export { extract, detectType, normDate, amountsIn, pickVendor, round2 } from "./extract.js";
 export { check, duplicateKey } from "./rules.js";
-export { decide, slug } from "./route.js";
+export { decide } from "./route.js";
+export { slug } from "./slug.js";
 export { appendAudit, sha256, AUDIT_FILE } from "./audit.js";
 export { processFile } from "./pipeline.js";
 export { recognize } from "./ocr.js";

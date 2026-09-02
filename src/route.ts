@@ -1,4 +1,5 @@
 import path from "node:path";
+import { slug } from "./slug.js";
 import type { DocumentRecord, RouteDecision, RuleResult } from "./types.js";
 
 /*
@@ -10,15 +11,6 @@ import type { DocumentRecord, RouteDecision, RuleResult } from "./types.js";
  * `review/`, because renaming a document you don't yet trust destroys the
  * one identifier a person can still search their inbox for.
  */
-
-export function slug(v: string | null, fallback: string): string {
-  const s = String(v ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return s || fallback;
-}
 
 export function decide(
   rec: DocumentRecord,

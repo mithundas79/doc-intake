@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { extract } from "../src/extract.js";
-import { decide, slug } from "../src/route.js";
+import { decide } from "../src/route.js";
+import { slug } from "../src/slug.js";
 import { check } from "../src/rules.js";
 import { SessionDuplicateStore } from "../src/types.js";
 
