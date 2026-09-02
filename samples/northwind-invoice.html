@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  body{width:900px;height:1160px;margin:0;background:#fff;color:#111;
+       font-family:Georgia,serif;position:relative}
+  .vendor{position:absolute;left:60px;top:52px;font-size:44px;font-weight:700}
+  .addr{position:absolute;left:60px;top:114px;font-size:24px}
+  .label{position:absolute;left:620px;top:56px;font-size:34px;font-weight:700}
+  .meta{position:absolute;left:480px;top:112px;font-size:24px;line-height:1.5}
+  table{position:absolute;left:60px;top:250px;width:780px;border-collapse:collapse;font-size:26px}
+  th{text-align:left;font-size:24px;border-top:2px solid #999;padding:14px 0 10px}
+  td{padding:11px 0}
+  .tot{position:absolute;left:60px;width:780px;top:560px;font-size:26px}
+  .tot div{display:flex;justify-content:flex-end;gap:60px;padding:9px 0}
+  .tot .line{border-top:2px solid #999;margin-bottom:6px}
+  .tot b{font-size:28px}
+  .terms{position:absolute;left:60px;top:760px;font-size:22px;color:#555}
+</style>
+<div class="vendor">Northwind Supplies</div>
+<div class="addr">14 Harbour Road, Portland</div>
+<div class="label">INVOICE</div>
+<div class="meta">Invoice No: NW-2026-0481<br>Invoice Date: 12 Aug 2026<br>Due Date: 11 Sep 2026</div>
+<table>
+  <tr><th style="width:480px">Description</th><th style="width:140px">Qty</th><th>Amount</th></tr>
+  <tr><td>Filter cartridges 10 in</td><td>24</td><td>408.00</td></tr>
+  <tr><td>Sealing rings box of 50</td><td>6</td><td>171.00</td></tr>
+  <tr><td>Delivery</td><td>1</td><td>45.00</td></tr>
+</table>
+<div class="tot">
+  <div class="line"></div>
+  <div><span>Subtotal</span><span>624.00</span></div>
+  <div><span>Tax 8.5%</span><span>53.04</span></div>
+  <div><b>Total Due</b><b>677.04</b></div>
+</div>
+<div class="terms">Payment terms: Net 30. Please quote the invoice number.</div>
