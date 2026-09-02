@@ -54,6 +54,7 @@ export async function processFile(sourcePath: string, opts: PipelineOptions): Pr
     source: path.basename(sourcePath),
     sha256: hash,
     ocr_confidence: confidence,
+    text,
     record,
     checks,
   };
