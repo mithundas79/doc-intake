@@ -1,0 +1,29 @@
+{
+  "name": "doc-intake",
+  "version": "0.1.0",
+  "description": "Documents in, order out. OCR + deterministic accounting rules decide what gets filed and what a human sees. No cloud, no API key, no model.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mithun Das",
+  "repository": { "type": "git", "url": "https://github.com/mithundas79/doc-intake.git" },
+  "bin": { "doc-intake": "dist/cli.js" },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:ocr": "vitest run --config vitest.ocr.config.ts",
+    "dev": "tsx src/cli.ts"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "tesseract.js": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
