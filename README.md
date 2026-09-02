@@ -4,6 +4,8 @@
 
 **Live demo (OCR in your browser):** <https://mithundas79.github.io/doc-intake/>
 
+*Want the full-stack version? [doc-intake-service](https://github.com/mithundas79/doc-intake-service) is the Python/FastAPI + React sibling, with native Tesseract and a trained document-type classifier.*
+
 Drop scanned invoices, receipts and statements into a folder. `doc-intake` reads
 them with OCR ([Tesseract](https://github.com/naptha/tesseract.js), running as
 WASM on your machine), extracts the fields, and then — the part that matters —
