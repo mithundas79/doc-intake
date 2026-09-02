@@ -9,5 +9,5 @@
     "noEmit": true,
     "allowImportingTsExtensions": false
   },
-  "include": ["src", "../src"]
+  "include": ["src", "../src/extract.ts", "../src/rules.ts", "../src/slug.ts", "../src/types.ts"]
 }
