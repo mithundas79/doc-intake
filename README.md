@@ -130,6 +130,19 @@ real-engine test is separate because it downloads traineddata on first run.
 - Duplicate detection is per-run by default (`SessionDuplicateStore`); wire in
   your own `DuplicateStore` for durable memory.
 
+## Where this code came from
+
+This library began life as a 334-line, single-file browser demo - one
+`<script>` tag, everything global, verified only by eyeballing it. Promoting
+that into a library started with a deliberate first move: **write the test
+suite against the existing behaviour before touching the structure.** The 26
+tests in `test/` were the specification the port had to keep passing; only
+then was the code split into modules, typed strictly, and given a CLI.
+
+That order matters. Refactor first and every bug you meet is ambiguous - was
+it always there, or did you just write it? Test first and the answer is in
+the suite.
+
 ## License
 
 MIT © Mithun Das
