@@ -2,6 +2,8 @@
 
 **Documents in, order out. No cloud, no API key, no model.**
 
+**Live demo (OCR in your browser):** <https://mithundas79.github.io/doc-intake/>
+
 Drop scanned invoices, receipts and statements into a folder. `doc-intake` reads
 them with OCR ([Tesseract](https://github.com/naptha/tesseract.js), running as
 WASM on your machine), extracts the fields, and then — the part that matters —
