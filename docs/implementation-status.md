@@ -43,7 +43,7 @@ Initial Windows sandbox Temp rename/hard-link failures were reproduced and
 resolved using checkout-local test scratch and exclusive-copy publication.
 Initial checkpoint CI used the previous workflow without explicit native
 installation and failed. Retrieved job logs confirm `spawn tesseract ENOENT`
-and `spawn pdfinfo ENOENT`; final updated CI result must be checked separately.
+and `spawn pdfinfo ENOENT`. Updated [CI passed](https://github.com/mithundas79/doc-intake/actions/runs/39616986474) at `0e5530ef`: 41 unit, 11 CLI/watch integration and 4 native OCR/PDF tests, plus TypeScript and demo builds.
 
 ## Deliberate limits and remaining delivery work
 
@@ -59,6 +59,5 @@ and `spawn pdfinfo ENOENT`; final updated CI result must be checked separately.
   of unrelated data. Source writers should use atomic producer renames.
 - Watch observation/retry counters reset after restart; duplicate memory does
   not. The event journal grows and is read per intake document.
-- Final GitHub CI confirmation, coordinator review and final PR verification
-  update remain. `attach_artifact` was attempted for PR #2 but the Codex bridge
-  returned MCP -32000; GitHub PR creation and feature-branch push succeeded.
+- Independent review and GitHub CI passed; PR #2 records the verification evidence.
+  Feature branch is pushed. This follow-up updates documentation only.
