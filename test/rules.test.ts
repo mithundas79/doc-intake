@@ -61,4 +61,15 @@ describe("check", () => {
     const b = { ...a, total: 999.99 };
     expect(duplicateKey(a)).not.toBe(duplicateKey(b));
   });
+  it("separates currencies/types and normalizes vendor whitespace in identity", () => {
+    const a = extract(GOOD);
+    expect(duplicateKey(a)).toBe(duplicateKey({ ...a, vendor: "  NORTHWIND   Supplies " }));
+    expect(duplicateKey(a)).not.toBe(duplicateKey({ ...a, currency: "INR" }));
+    expect(duplicateKey(a)).not.toBe(duplicateKey({ ...a, document_type: "credit_note" }));
+  });
+  it("routes ambiguous numeric dates and mixed currencies to review", () => {
+    const results = check(extract(GOOD.replace("12 Aug 2026", "03/04/2026") + "\nUSD INR"), new SessionDuplicateStore());
+    expect(results.find((r) => r.rule === "Date not read")?.ok).toBe(false);
+    expect(results.find((r) => r.rule === "Currency ambiguous")?.ok).toBe(false);
+  });
 });

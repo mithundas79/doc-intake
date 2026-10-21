@@ -4,7 +4,8 @@ export { decide } from "./route.js";
 export { slug } from "./slug.js";
 export { appendAudit, sha256, AUDIT_FILE } from "./audit.js";
 export { processFile } from "./pipeline.js";
-export { recognize } from "./ocr.js";
+export { recognize, recognizeDocument, DEFAULT_LIMITS } from "./ocr.js";
+export { FolderWatcher, sameVersion, retryDelay } from "./watch.js";
 export type { OcrFn, OcrResult } from "./ocr.js";
 export type { PipelineOptions, PipelineResult } from "./pipeline.js";
 export {

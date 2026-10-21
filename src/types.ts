@@ -19,7 +19,9 @@ export interface DocumentRecord {
   /** ISO date (YYYY-MM-DD) where the source format allowed normalisation. */
   date: string | null;
   due_date: string | null;
-  currency: "USD" | "EUR" | "GBP";
+  currency: "USD" | "EUR" | "GBP" | "INR";
+  /** Ambiguous currency indicators require review. Absent on legacy caller records. */
+  currency_ambiguous?: boolean;
   subtotal: number | null;
   tax: number | null;
   total: number | null;
@@ -45,6 +47,9 @@ export interface RouteDecision {
 
 /** One line of the append-only audit log (JSONL). */
 export interface AuditEntry {
+  id?: string;
+  outcome?: "filed" | "review";
+  source_cleanup?: "copied" | "moved" | "source_changed_preserved" | "source_missing";
   at: string;
   source: string;
   sha256: string;
@@ -58,11 +63,14 @@ export interface AuditEntry {
 export interface DuplicateStore {
   /** Returns true if the key was already present; records it either way. */
   seenBefore(key: string): boolean;
+  /** Non-mutating lookup used by previews. */
+  has?(key: string): boolean;
 }
 
 /** In-memory store: duplicates within one run/session. */
 export class SessionDuplicateStore implements DuplicateStore {
   private seen = new Set<string>();
+  has(key: string): boolean { return this.seen.has(key); }
   seenBefore(key: string): boolean {
     if (this.seen.has(key)) return true;
     this.seen.add(key);

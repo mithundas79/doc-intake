@@ -15,7 +15,8 @@ const near = (a: number | null, b: number | null, tol = 0.02): boolean =>
 
 /** The stable identity of a document for duplicate detection. */
 export function duplicateKey(rec: DocumentRecord): string {
-  return [rec.vendor, rec.number, rec.total].join("|").toLowerCase();
+  const normalize = (s: string | null) => s?.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase() ?? "";
+  return JSON.stringify([normalize(rec.vendor), normalize(rec.number), rec.currency, rec.document_type, rec.total]);
 }
 
 export function check(rec: DocumentRecord, dupes: DuplicateStore): RuleResult[] {
@@ -34,10 +35,12 @@ export function check(rec: DocumentRecord, dupes: DuplicateStore): RuleResult[] 
   );
 
   out.push(
-    rec.date
+    rec.date && /^\d{4}-\d{2}-\d{2}$/.test(rec.date)
       ? { ok: true, rule: "Date read", detail: rec.date }
       : { ok: false, rule: "Date not read", detail: "A posting date must never be guessed" },
   );
+
+  if (rec.currency_ambiguous) out.push({ ok: false, rule: "Currency ambiguous", detail: "Conflicting currency indicators require review" });
 
   if (rec.subtotal !== null && rec.tax !== null && rec.total !== null) {
     const ok = near(round2(rec.subtotal + rec.tax), rec.total);
