@@ -3,3 +3,8 @@ dist/
 *.log
 .DS_Store
 eng.traineddata
+.test-tmp/
+out/
+demo/public/ocr/
+demo/playwright-report/
+demo/test-results/

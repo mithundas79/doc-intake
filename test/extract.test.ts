@@ -47,6 +47,21 @@ describe("extract", () => {
     expect(extract("Facture\nTotal 10.00 EUR").currency).toBe("EUR");
     expect(extract("Invoice\nTotal £10.00").currency).toBe("GBP");
   });
+
+  it("accepts explicit INR indicators with valid Indian grouping", () => {
+    for (const indicator of ["INR", "Rs.", "Rs", "₹"]) {
+      const r = extract(`Acme India\nTotal ${indicator} 1,23,456.78`);
+      expect(r.currency).toBe("INR"); expect(r.total).toBe(123456.78);
+    }
+    expect(amountsIn("1,234.56 12,34,567.89 123456.78")).toEqual([1234.56, 1234567.89, 123456.78]);
+  });
+
+  it("rejects ambiguous decimals, malformed grouping, percentages and overprecision as whole tokens", () => {
+    for (const value of ["1.234,56", "123,45", "1,234,56", "123,45,678.90", "1,23.45", "12.345", "8.50%", "100.00.00"])
+      expect(amountsIn(`Total ${value}`), value).toEqual([]);
+    expect(amountsIn("GBP 1,234.56 EUR 456.78 USD 12.34")).toEqual([1234.56, 456.78, 12.34]);
+    expect(extract("Total USD 12.00 INR").currency_ambiguous).toBe(true);
+  });
 });
 
 describe("detectType", () => {
@@ -88,5 +103,10 @@ describe("normDate", () => {
   });
   it("passes through formats it cannot be sure about", () => {
     expect(normDate("03/04/2026")).toBe("03/04/2026");
+  });
+  it("rejects impossible calendar dates and accepts explicit ISO dates", () => {
+    expect(normDate("31 Feb 2026")).toBeNull();
+    expect(normDate("2026-02-29")).toBeNull();
+    expect(extract("Invoice Date: 2026-08-12").date).toBe("2026-08-12");
   });
 });

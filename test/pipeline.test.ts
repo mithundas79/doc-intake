@@ -43,7 +43,7 @@ beforeEach(async () => {
 });
 
 describe("processFile", () => {
-  it("moves a clean document into filed/ with a sidecar and an audit line", async () => {
+  it("copies a clean document into filed/ with a sidecar and an audit line", async () => {
     const src = path.join(inbox, "scan.png");
     await writeFile(src, "png-bytes");
 
@@ -58,8 +58,7 @@ describe("processFile", () => {
     expect((await readdir(path.dirname(dest))).sort()).toEqual(
       [path.basename(dest), path.basename(dest) + ".json"].sort(),
     );
-    // moved, not copied
-    expect(await readdir(inbox)).toEqual([]);
+    expect(await readdir(inbox)).toEqual(["scan.png"]);
 
     const sidecar = JSON.parse(await readFile(dest + ".json", "utf8"));
     expect(sidecar.record.vendor).toBe("Northwind Supplies");
@@ -106,5 +105,66 @@ describe("processFile", () => {
       keepOriginal: true,
     });
     expect(await readdir(inbox)).toEqual(["keep.png"]);
+  });
+
+  it("moves only when explicitly requested, including legacy keepOriginal=false", async () => {
+    for (const options of [{ move: true }, { keepOriginal: false }]) {
+      const src = path.join(inbox, "move.png"); await writeFile(src, Math.random().toString());
+      await processFile(src, { outRoot, ocr: fakeOcr(GOOD_TEXT), ...options });
+      expect(await readdir(inbox)).toEqual([]);
+    }
+  });
+
+  it("preserves changed move sources and does not poison the next transaction", async () => {
+    const source = path.join(inbox, "changed.png"); await writeFile(source, "old bytes");
+    const first = await processFile(source, { outRoot, move: true, ocr: async () => {
+      await writeFile(source, "new bytes"); return fakeOcr(GOOD_TEXT)(source);
+    } });
+    expect(first.entry.source_cleanup).toBe("source_changed_preserved");
+    expect(await readFile(source, "utf8")).toBe("new bytes");
+    expect(await readdir(path.join(outRoot, ".intake", "pending"))).toEqual([]);
+    const next = await processFile(source, { outRoot, ocr: fakeOcr(BAD_TEXT) });
+    expect(next.entry.sha256).not.toBe(first.entry.sha256);
+  });
+
+  it("uses legacy seenBefore-only custom stores and refuses to mutate them in previews", async () => {
+    const source = path.join(inbox, "legacy.png"); await writeFile(source, "legacy");
+    let calls = 0;
+    const dupes = { seenBefore: () => { calls++; return true; } };
+    const result = await processFile(source, { outRoot, dupes, ocr: fakeOcr(GOOD_TEXT) });
+    expect(result.decision.failures.some((c) => c.rule.startsWith("Duplicate"))).toBe(true);
+    expect(calls).toBeGreaterThan(0);
+    const before = calls;
+    await expect(processFile(source, { outRoot, dupes, dryRun: true, ocr: fakeOcr(GOOD_TEXT) })).rejects.toThrow("Dry-run requires DuplicateStore.has");
+    expect(calls).toBe(before);
+  });
+
+  it("dry-run creates no outputs and consumes no identity", async () => {
+    const source = path.join(inbox, "preview.png"); await writeFile(source, "preview bytes");
+    const dupes = new SessionDuplicateStore();
+    await processFile(source, { outRoot, dupes, dryRun: true, ocr: fakeOcr(GOOD_TEXT) });
+    expect(await readdir(outRoot)).toEqual([]);
+    expect((await processFile(source, { outRoot, dupes, ocr: fakeOcr(GOOD_TEXT) })).decision.action).toBe("file");
+  });
+
+  it("failed OCR does not claim duplicate identity and is audited as an error", async () => {
+    const source = path.join(inbox, "retry.png"); await writeFile(source, "retry bytes");
+    await expect(processFile(source, { outRoot, ocr: async () => { throw new Error("transient decoder error"); } })).rejects.toThrow("transient decoder error");
+    const result = await processFile(source, { outRoot, ocr: fakeOcr(GOOD_TEXT) });
+    expect(result.decision.action).toBe("file");
+    const audit = (await readFile(path.join(outRoot, "audit.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
+    expect(audit.map((e) => e.outcome).sort()).toEqual(["error", "filed"]);
+  });
+
+  it("never overwrites a colliding original or orphan sidecar", async () => {
+    const src = path.join(inbox, "review.png"); await writeFile(src, "new bytes");
+    const folder = path.join(outRoot, "review");
+    const { mkdir } = await import("node:fs/promises"); await mkdir(folder);
+    await writeFile(path.join(folder, "review.png.json"), "unrelated sidecar");
+    const result = await processFile(src, { outRoot, ocr: fakeOcr(BAD_TEXT) });
+    expect(result.decision.relativePath).not.toBe("review/review.png");
+    expect(await readFile(path.join(folder, "review.png.json"), "utf8")).toBe("unrelated sidecar");
+    const sidecar = JSON.parse(await readFile(path.join(outRoot, result.decision.relativePath) + ".json", "utf8"));
+    expect(sidecar.id).toBe(result.entry.id);
   });
 });

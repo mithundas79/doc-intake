@@ -8,9 +8,10 @@ import type { DocumentRecord, DocumentType, OcrLine } from "./types.js";
  * "Subtotal". These constraints came from real failures, not caution.
  */
 
-const AMOUNT = /(-?\d[\d,]*\.\d{2})(?!\s*%)/g;
-
-const money = (v: string): number => parseFloat(v.replace(/,/g, ""));
+// Consume the entire numeric token before validating: never salvage `234.56`
+// from malformed `1,234,56` or `1.234,56`. Only dot decimals are supported.
+const AMOUNT = /-?\d[\d.,]*/g;
+const VALID_MONEY = /^-?(?:\d+|\d{1,3}(?:,\d{3})+|\d{1,2}(?:,\d{2})*,\d{3})\.\d{2}$/;
 
 export const round2 = (n: number): number => Number(n.toFixed(2));
 
@@ -18,7 +19,13 @@ export function amountsIn(line: string): number[] {
   const out: number[] = [];
   AMOUNT.lastIndex = 0;
   let m: RegExpExecArray | null;
-  while ((m = AMOUNT.exec(line)) !== null) out.push(money(m[1]!));
+  while ((m = AMOUNT.exec(line)) !== null) {
+    const token = m[0];
+    const before = line[m.index - 1] ?? "";
+    if (/[\w.,]/.test(before) || /^\s*%/.test(line.slice(AMOUNT.lastIndex)) || !VALID_MONEY.test(token)) continue;
+    const value = Number(token.replace(/,/g, ""));
+    if (Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER / 100) out.push(value);
+  }
   return out;
 }
 
@@ -78,7 +85,7 @@ export function pickVendor(lines: string[], ocrLines?: OcrLine[] | null): string
 
 function dateIn(l: string): string | null {
   const m = l.match(
-    /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})/,
+    /(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})/,
   );
   return m ? m[1]! : null;
 }
@@ -93,15 +100,20 @@ function monthNum(name: string): string | null {
 /** Normalise "12 Aug 2026" / "Aug 12, 2026" to ISO; pass anything else through. */
 export function normDate(v: string | null): string | null {
   if (!v) return null;
+  const valid = (iso: string): string | null => {
+    const d = new Date(iso + "T00:00:00Z");
+    return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === iso ? iso : null;
+  };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return valid(v);
   let m = v.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
   if (m) {
     const mm = monthNum(m[2]!);
-    if (mm) return `${m[3]}-${mm}-${m[1]!.padStart(2, "0")}`;
+    if (mm) return valid(`${m[3]}-${mm}-${m[1]!.padStart(2, "0")}`);
   }
   m = v.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/);
   if (m) {
     const mm = monthNum(m[1]!);
-    if (mm) return `${m[3]}-${mm}-${m[2]!.padStart(2, "0")}`;
+    if (mm) return valid(`${m[3]}-${mm}-${m[2]!.padStart(2, "0")}`);
   }
   return v;
 }
@@ -113,13 +125,19 @@ export function extract(text: string, ocrLines?: OcrLine[] | null): DocumentReco
     .map((l) => l.trim())
     .filter(Boolean);
 
+  const currencies: DocumentRecord["currency"][] = [];
+  if (/\$|\bUSD\b/i.test(text)) currencies.push("USD");
+  if (/€|\bEUR\b/i.test(text)) currencies.push("EUR");
+  if (/£|\bGBP\b/i.test(text)) currencies.push("GBP");
+  if (/₹|\bINR\b|\bRs\.?\s*(?=\d)/i.test(text)) currencies.push("INR");
   const rec: DocumentRecord = {
     vendor: pickVendor(lines, ocrLines),
     document_type: detectType(text),
     number: null,
     date: null,
     due_date: null,
-    currency: /€|\bEUR\b/.test(text) ? "EUR" : /£|\bGBP\b/.test(text) ? "GBP" : "USD",
+    currency: currencies[0] ?? "USD",
+    ...(currencies.length > 1 ? { currency_ambiguous: true } : {}),
     subtotal: null,
     tax: null,
     total: null,

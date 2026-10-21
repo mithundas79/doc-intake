@@ -6,7 +6,8 @@ import { defineConfig } from "vitest/config";
 // test:ocr` for the engine.
 export default defineConfig({
   test: {
+    setupFiles: ["test/setup.ts"],
     include: ["test/**/*.test.ts"],
-    exclude: ["test/ocr.test.ts"],
+    exclude: ["test/ocr.test.ts", "test/cli.integration.test.ts", "test/watch.integration.test.ts"],
   },
 });

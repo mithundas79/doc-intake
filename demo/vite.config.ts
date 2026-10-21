@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "./",
+  base: "/doc-intake/",
   plugins: [react()],
   resolve: {
     // The library uses NodeNext-style `./x.js` specifiers in its TS source;
