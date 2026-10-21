@@ -32,3 +32,35 @@ jobs:
           path: demo/dist
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  verify-published:
+    name: verify published browser OCR demo
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify the published demo with real OCR
+        run: npx playwright test
+        env:
+          PUBLISHED_DEMO_URL: https://mithundas79.github.io/doc-intake/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: doc-intake-live-browser-evidence
+          path: |
+            demo/playwright-report/
+            demo/test-results/
+          if-no-files-found: warn

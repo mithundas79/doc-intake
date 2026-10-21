@@ -118,3 +118,14 @@ README clone guidance and the demo's source, installation-guide and local
 setup links now target main. Historical test evidence above is retained.
 This preparation does not change OCR behavior, merge the PR, alter deployment
 policy or claim that live deployment verification has completed.
+
+## Hosted post-deployment verification
+
+The Pages workflow now follows successful deployment with a read-only Chromium
+job on Ubuntu 24.04. It runs the same eight real-OCR/lifecycle checks against
+the exact public URL, then uploads live screenshots and reports. Setting
+`PUBLISHED_DEMO_URL=https://mithundas79.github.io/doc-intake/` disables the local
+preview server; other nonempty values are rejected. Default CI still verifies
+the locally built `/doc-intake/` site. Origin assertions use the configured
+base URL. Deployment branch/environment policy is unchanged. Live verification
+results remain pending until this follow-up is merged and the Pages job runs.
