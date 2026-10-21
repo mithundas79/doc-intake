@@ -159,4 +159,27 @@ describe("real filesystem CLI in separate processes", () => {
       expect(await readdir(path.join(f.out, ".intake", "pending"))).toEqual([]);
     }
   });
+
+  it("commits a pending explicit move at startup with an empty inbox", async () => {
+    const f = await fixture(); expect((await invoke([f.inbox, "--out", f.out])).code).toBe(0);
+    const entry = (await audit(f.out))[0]; const event = path.join(f.out, ".intake", "events", entry.id + ".json");
+    const transaction = JSON.parse(await readFile(event, "utf8")); transaction.moveSource = f.source;
+    await copyFile(f.source, path.join(f.out, ".intake", "staging", entry.id));
+    await writeFile(path.join(f.out, ".intake", "pending", entry.id + ".json"), JSON.stringify(transaction));
+    await rm(event); await rm(f.source); // interruption after source deletion, before event commit
+    const before = await tree(f.root);
+    expect((await invoke([f.inbox, "--out", f.out, "--dry-run"])).code).toBe(0);
+    expect(await tree(f.root)).toEqual(before);
+    const resumed = await invoke([f.inbox, "--out", f.out]); expect(resumed.code, resumed.stderr).toBe(0);
+    expect(await readdir(f.inbox)).toEqual([]);
+    expect(await readdir(path.join(f.out, ".intake", "pending"))).toEqual([]);
+    const committed = await audit(f.out); expect(committed).toHaveLength(1);
+    expect(committed[0]).toMatchObject({ id: entry.id, sha256: entry.sha256, source_cleanup: "source_missing" });
+    const destination = path.join(f.out, committed[0].decision.relativePath);
+    expect(sha256(await readFile(destination))).toBe(entry.sha256);
+    expect(JSON.parse(await readFile(destination + ".json", "utf8")).id).toBe(entry.id);
+    const fresh = await fixture(); await rm(fresh.source);
+    expect((await invoke([fresh.inbox, "--out", fresh.out])).code).toBe(0);
+    await expect(stat(fresh.out)).rejects.toMatchObject({ code: "ENOENT" });
+  });
 });

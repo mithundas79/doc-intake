@@ -127,6 +127,17 @@ export async function recover(root: string): Promise<string[]> {
   return errors;
 }
 
+/** Resume interrupted commits even when an explicit move emptied the inbox.
+ * An untouched/empty inbox does not create a new output root. */
+export async function recoverExistingOutput(outRoot: string): Promise<string[]> {
+  const root = path.resolve(outRoot);
+  let names: string[];
+  try { names = await readdir(path.join(stateRoot(root), "pending")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error; }
+  if (!names.some((name) => name.endsWith(".json"))) return [];
+  return withStateLock(root, () => recover(root));
+}
+
 export async function processFile(sourcePath: string, opts: PipelineOptions): Promise<PipelineResult> {
   const root = path.resolve(opts.outRoot); const source = path.resolve(sourcePath);
   let hash: string | null = null;

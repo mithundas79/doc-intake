@@ -29,7 +29,7 @@ remote OCR, fake engine substitution in the native suite or production documents
 | `npm run build` | PASS, TypeScript compiler exit 0. |
 | `npm test` | PASS — `Test Files 6 passed (6)`, `Tests 41 passed (41)`; final run 2.20s. |
 | `npm run test:ocr` | PASS — `Test Files 1 passed (1)`, `Tests 4 passed (4)`; actual native PNG OCR, two-page embedded PDF (OCR binary deliberately unavailable), scanned PDF OCR, page/pixel limits. |
-| `npm run test:integration` | PASS — `Test Files 2 passed (2)`, `Tests 10 passed (10)`; final run 12.72s. |
+| `npm run test:integration` | PASS — `Test Files 2 passed (2)`, `Tests 11 passed (11)`; final run 12.98s. Includes separate-process empty-inbox explicit-move commit recovery, unchanged dry-run and no output creation for an empty untouched inbox. |
 | `npm ci --prefix demo` | PASS. |
 | `npm --prefix demo run build` | PASS — TypeScript check and Vite build, 84 modules transformed. |
 
@@ -42,7 +42,8 @@ in the coordinator's environment; the application correctly reported ENOENT.
 Initial Windows sandbox Temp rename/hard-link failures were reproduced and
 resolved using checkout-local test scratch and exclusive-copy publication.
 Initial checkpoint CI used the previous workflow without explicit native
-installation and failed; final updated CI result must be checked separately.
+installation and failed. Retrieved job logs confirm `spawn tesseract ENOENT`
+and `spawn pdfinfo ENOENT`; final updated CI result must be checked separately.
 
 ## Deliberate limits and remaining delivery work
 

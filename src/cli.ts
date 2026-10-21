@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { processFile } from "./pipeline.js";
+import { processFile, recoverExistingOutput } from "./pipeline.js";
 import { FolderWatcher, listInputs } from "./watch.js";
 
 const USAGE = "usage: doc-intake <inbox-dir> [--out <dir>] [--move | --keep] [--dry-run] [--watch] [--stable-ms N] [--poll-ms N] [--retry-ms N] [--max-attempts N]";
@@ -35,8 +35,13 @@ async function main(): Promise<number> {
     if (permanent) status = 2;
     console.error(`${permanent ? "error permanent" : "retry"}  ${path.basename(file)} attempt=${attempt}: ${error instanceof Error ? error.message : String(error)}`);
   };
+  const initialFiles = await listInputs(inbox);
+  if (!dryRun) {
+    const recoveryErrors = await recoverExistingOutput(outRoot);
+    if (recoveryErrors.length) { status = 2; for (const error of recoveryErrors) console.error(`error recovery  ${error}`); }
+  }
   if (!watch) {
-    for (const file of await listInputs(inbox)) {
+    for (const file of initialFiles) {
       try { await processOne(file); } catch (error) { onError(file, error); }
     }
     return status;

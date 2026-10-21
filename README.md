@@ -116,6 +116,8 @@ Writers to one output root serialize under a local PID/token lock. A dead
 owner is recovered automatically; live owners are never evicted based on age.
 Output bytes and pending manifests are synced before source deletion. Pending
 transactions are replayed on the next real run. A conflicting/interrupted
+commit is recovered at CLI startup even when an explicit move emptied the
+inbox. Preview leaves pending state untouched. A conflicting/interrupted
 partial output is preserved and its manifest quarantined under
 `.intake/quarantine/`, with an error event; other intake can continue. Inspect
 the preserved source, staged bytes and error before manually cleaning up.

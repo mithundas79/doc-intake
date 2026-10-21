@@ -3,7 +3,7 @@ export { check, duplicateKey } from "./rules.js";
 export { decide } from "./route.js";
 export { slug } from "./slug.js";
 export { appendAudit, sha256, AUDIT_FILE } from "./audit.js";
-export { processFile } from "./pipeline.js";
+export { processFile, recoverExistingOutput } from "./pipeline.js";
 export { recognize, recognizeDocument, DEFAULT_LIMITS } from "./ocr.js";
 export { FolderWatcher, sameVersion, retryDelay } from "./watch.js";
 export type { OcrFn, OcrResult } from "./ocr.js";
