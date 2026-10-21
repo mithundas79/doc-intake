@@ -24,7 +24,7 @@ export interface PipelineOptions {
   dryRun?: boolean;
   maxFileBytes?: number;
 }
-export interface PipelineResult { decision: RouteDecision; entry: AuditEntry; }
+export interface PipelineResult { decision: RouteDecision; entry: AuditEntry; recoveryErrors?: string[]; }
 
 async function exists(file: string): Promise<boolean> {
   try { await stat(file); return true; }
@@ -32,7 +32,8 @@ async function exists(file: string): Promise<boolean> {
 }
 
 /** Bounded read through an open descriptor; reject growth beyond the limit. */
-async function snapshot(source: string, maxBytes: number): Promise<Buffer> {
+export async function snapshot(source: string, maxBytes: number): Promise<Buffer> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error("maxFileBytes must be a positive safe integer");
   const h = await open(source, "r");
   try {
     const before = await h.stat();
@@ -65,6 +66,14 @@ async function availablePath(root: string, relative: string, id: string): Promis
 async function finish(root: string, transaction: Transaction): Promise<void> {
   const dest = path.join(root, transaction.entry.decision.relativePath);
   const stage = path.join(stateRoot(root), "staging", transaction.id);
+  const alreadyCommitted = (await readEvents(root)).find((e): e is Transaction => "version" in e && e.id === transaction.id);
+  if (alreadyCommitted) {
+    transaction.entry = alreadyCommitted.entry;
+    await rebuildAudit(root);
+    await rm(path.join(stateRoot(root), "pending", transaction.id + ".json"), { force: true });
+    await rm(stage, { force: true }); await rm(stage + ".json", { force: true });
+    return;
+  }
   await mkdir(path.dirname(dest), { recursive: true });
   try { await copyFile(stage, dest, constants.COPYFILE_EXCL); }
   catch (e) {
@@ -93,11 +102,12 @@ async function finish(root: string, transaction: Transaction): Promise<void> {
   await rm(stage, { force: true }); await rm(sideStage, { force: true });
 }
 
-export async function recover(root: string): Promise<void> {
+export async function recover(root: string): Promise<string[]> {
+  const errors: string[] = [];
   const folder = path.join(stateRoot(root), "pending");
   let names: string[];
   try { names = await readdir(folder); }
-  catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") { await rebuildAudit(root); return; } throw e; }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") { await rebuildAudit(root); return errors; } throw e; }
   for (const name of names.sort()) {
     if (name.endsWith(".json")) {
       const transaction = JSON.parse(await readFile(path.join(folder, name), "utf8")) as Transaction;
@@ -105,20 +115,23 @@ export async function recover(root: string): Promise<void> {
       catch (error) {
         // An interrupted partial copy or externally changed destination must
         // never overwrite user data or block unrelated intake forever.
-        await saveEvent(root, { id: randomUUID(), at: new Date().toISOString(), source: transaction.entry.source, sha256: transaction.entry.sha256, outcome: "error", error: `Recovery quarantined ${transaction.id}: ${error instanceof Error ? error.message : String(error)}` });
+        const message = `Recovery quarantined ${transaction.id}: ${error instanceof Error ? error.message : String(error)}`;
+        errors.push(message);
+        await saveEvent(root, { id: randomUUID(), at: new Date().toISOString(), source: transaction.entry.source, sha256: transaction.entry.sha256, outcome: "error", error: message });
         const quarantine = path.join(stateRoot(root), "quarantine"); await mkdir(quarantine, { recursive: true });
         await rename(path.join(folder, name), path.join(quarantine, name));
       }
     }
   }
   await rebuildAudit(root);
+  return errors;
 }
 
 export async function processFile(sourcePath: string, opts: PipelineOptions): Promise<PipelineResult> {
   const root = path.resolve(opts.outRoot); const source = path.resolve(sourcePath);
   let hash: string | null = null;
   const run = async (): Promise<PipelineResult> => {
-    if (!opts.dryRun) await recover(root);
+    const recoveryErrors = opts.dryRun ? [] : await recover(root);
     const id = randomUUID();
     if (!SUPPORTED_EXTENSIONS.has(path.extname(source).toLowerCase())) throw new Error("Unsupported file type");
     const bytes = await snapshot(source, opts.maxFileBytes ?? MAX_FILE_BYTES);
@@ -155,7 +168,7 @@ export async function processFile(sourcePath: string, opts: PipelineOptions): Pr
     await durableJson(path.join(stateRoot(root), "pending", id + ".json"), transaction);
     await finish(root, transaction);
     if (key) opts.dupes?.seenBefore(key);
-    return { decision, entry };
+    return { decision, entry: transaction.entry, ...(recoveryErrors.length ? { recoveryErrors } : {}) };
   };
   if (opts.dryRun) return run();
   return withStateLock(root, async () => {

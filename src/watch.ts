@@ -1,7 +1,7 @@
-import { lstat, readdir, readFile } from "node:fs/promises";
+import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
 import { sha256 } from "./audit.js";
-import { MAX_FILE_BYTES, SUPPORTED_EXTENSIONS } from "./pipeline.js";
+import { MAX_FILE_BYTES, SUPPORTED_EXTENSIONS, snapshot } from "./pipeline.js";
 
 export interface FileVersion { size: number; mtimeMs: number; ctimeMs: number; hash: string; }
 export function sameVersion(a: FileVersion, b: FileVersion): boolean {
@@ -47,12 +47,12 @@ export class FolderWatcher {
       try {
         const s = await lstat(file);
         // Oversized inputs need not be buffered just to detect a version.
-        version = { size: s.size, mtimeMs: s.mtimeMs, ctimeMs: s.ctimeMs, hash: s.size <= MAX_FILE_BYTES ? sha256(await readFile(file)) : "oversized" };
+        version = { size: s.size, mtimeMs: s.mtimeMs, ctimeMs: s.ctimeMs, hash: s.size <= MAX_FILE_BYTES ? sha256(await snapshot(file, MAX_FILE_BYTES)) : "oversized" };
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
         // Stat/read failures are handled by the same bounded processing policy.
         const existing = this.observations.get(file);
-        version = existing?.version ?? { size: -1, mtimeMs: -1, ctimeMs: -1, hash: "unreadable" };
+        version = { ...(existing?.version ?? { size: -1, mtimeMs: -1, ctimeMs: -1 }), hash: "unreadable" };
       }
       let observed = this.observations.get(file);
       if (!observed || !sameVersion(observed.version, version)) {
@@ -64,7 +64,7 @@ export class FolderWatcher {
       try { await this.options.process(file); observed.done = true; }
       catch (error) {
         observed.done = observed.attempts >= (this.options.maxAttempts ?? 3);
-        observed.next = now + retryDelay(observed.attempts, this.options.retryMs ?? 1000);
+        observed.next = (this.options.now ?? Date.now)() + retryDelay(observed.attempts, this.options.retryMs ?? 1000);
         this.options.onError(file, error, observed.done, observed.attempts);
       }
     }

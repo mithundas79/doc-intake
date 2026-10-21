@@ -25,7 +25,8 @@ async function main(): Promise<number> {
   if (!inbox || move && keep || watch && dryRun) throw new Error(USAGE);
   let status = 0;
   const processOne = async (file: string) => {
-    const { decision } = await processFile(file, { outRoot, move, dryRun });
+    const { decision, recoveryErrors } = await processFile(file, { outRoot, move, dryRun });
+    if (recoveryErrors?.length) { status = 2; for (const error of recoveryErrors) console.error(`error recovery  ${error}`); }
     if (decision.action === "review") status = Math.max(status, 1);
     const why = decision.failures.map((f) => f.rule).join("; ");
     console.log(`${dryRun ? "preview " : ""}${decision.action === "file" ? "filed" : "review"}  ${path.basename(file)} -> ${decision.relativePath}${why ? ` (${why})` : ""}`);

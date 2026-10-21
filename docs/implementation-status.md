@@ -1,43 +1,63 @@
 # Durable offline intake — issue #1
 
-Branch: `feature/durable-offline-intake`. Work in progress; not ready to merge.
+Branch: `feature/durable-offline-intake`.
+Draft PR: https://github.com/mithundas79/doc-intake/pull/2. Do not merge as part
+of this task. Implementation complete; final Linux CI/independent review pending.
 
-## Acceptance checkpoint (2026-10-21)
+## Acceptance mapping (2026-10-21)
 
-- Durable identities: output-local immutable event journal; exact bytes plus
-  normalized vendor/number/currency/type/total. Filed and review documents claim
-  identities; extraction errors do not. Local PID/token lock serializes writers.
-- Routing: copy default, explicit move, mutation-free preview, exclusive output
-  creation, associated transaction IDs on audit/sidecar, pending recovery and
-  conservative conflict quarantine. Changed move sources remain intact.
-- Watch: stable content/metadata observations, serialized sweeps, bounded
-  exponential retries, permanent error callback, changed-filename reuse.
-- PDFs: native Poppler embedded-text extraction across pages and raster OCR for
-  scanned pages; 25 MiB, 20 pages, 25 MP images, 60-second child deadlines.
-- Parsing: explicit INR/Rs/rupee indicators, validated Indian/Western grouping,
-  dot/two-decimal money only; ambiguous numeric dates require review.
-- API: legacy session stores supported; preview requires optional non-mutating
-  `has()` if a custom store is supplied. Defaults intentionally preserve sources.
+| Issue criterion | Implementation and verification |
+| --- | --- |
+| Durable duplicate identity and concurrency | Immutable output-local journal, SHA-256 plus normalized vendor/number/currency/type/total, filed/review claims and failed-attempt exclusion. PID/token lock, killed-owner recovery, separate-process restart/business-identity/concurrent-writer tests. Legacy audit migration retains backup/history; read-only legacy previews work before migration. |
+| Preserve originals and dry-run | Default copy, explicit `--move`, compatible `--keep` and library `keepOriginal:false`. Integration hashes entire input/output tree before/after previews, including a populated output and untouched legacy state. |
+| Collision-safe association | Exclusive copies, suffix if either output or sidecar exists, transaction IDs and hashes in sidecars/audit. Tests preserve unrelated filed/review originals and orphan sidecars. Pending replay and partial-copy quarantine preserve bytes and continue intake. Recovery errors return exit 2. |
+| Stable bounded watch | Bounded descriptor reads, size/time/content stability, shared in-flight sweep, exponential retries, permanent error observations, changed-filename reuse. Actual CLI delayed-write/reuse/permanent-error test; transient real extraction and nonoverlap integration. Unit race timing injects a real append after first descriptor read and verifies growth rejection. |
+| Text/scanned multi-page PDF and images | Native Poppler per-page text/raster extraction and Tesseract OCR; 25 MiB input, 20 pages, 25 MP images, bounded raster side, 60-second/8 MiB child caps. Actual committed PNG, two-page text PDF, scanned PDF and resource-limit tests pass. |
+| INR and conservative parsing | INR/Rs/rupee indicators, Indian/Western grouping validation, USD/EUR/GBP preservation, rejected comma decimals/percentages/overprecision, mixed-currency review, invalid/ambiguous date review. Focused unit tests. |
+| Audit and exit codes | Filed/review/error outcomes, recoverable JSONL projection from authoritative immutable events; errors dominate review with exit 2, duplicate/review exit 1, clean exit 0. CLI integration asserts all three, failure retry, quarantine and usage errors. |
+| Public interface and documentation | Pure extraction/rule modules retained for demo; optional `dupes`, legacy custom-store compatibility, non-mutating `has` requirement for custom-store preview. README documents copy/native-OCR migration, identity policy, examples, watch behavior, PDF/parser/storage limits and browser scope. |
+| Reproducible CI/sample workflow | CI installs native tools and runs TypeScript, units, native OCR/PDF, real CLI/watch integration and demo build. Fictional MIT fixtures/generator committed. README includes fresh-checkout Ubuntu/Windows instructions and actual CLI sample workflow. |
 
-## Actual verification
+## Actual local verification
 
-- `npm run build`: PASS (TypeScript).
-- `npm test`: PASS — 5 files, 40 tests, 2.22 seconds.
-- `npm run test:ocr`: PASS — 1 file, 4 tests, 3.33 seconds; actual native
-  Tesseract PNG OCR, Poppler two-page embedded text, rasterized scanned PDF OCR,
-  and page/pixel limits. Fixtures are committed fictional MIT content.
+Node v20.20.2, Windows, installed native Tesseract and Poppler. No paid service,
+remote OCR, fake engine substitution in the native suite or production documents.
+
+| Exact command | Observed result |
+| --- | --- |
+| `npm ci` | PASS, dependencies installed from lockfile. |
+| `npm run build` | PASS, TypeScript compiler exit 0. |
+| `npm test` | PASS — `Test Files 6 passed (6)`, `Tests 41 passed (41)`; final run 2.20s. |
+| `npm run test:ocr` | PASS — `Test Files 1 passed (1)`, `Tests 4 passed (4)`; actual native PNG OCR, two-page embedded PDF (OCR binary deliberately unavailable), scanned PDF OCR, page/pixel limits. |
+| `npm run test:integration` | PASS — `Test Files 2 passed (2)`, `Tests 10 passed (10)`; final run 12.72s. |
+| `npm ci --prefix demo` | PASS. |
+| `npm --prefix demo run build` | PASS — TypeScript check and Vite build, 84 modules transformed. |
+
+The coordinator independently ran the compiled CLI on the two-page PDF:
+preview exit 0 with no output creation; first copy exit 0; separate-process
+duplicate exit 1; original SHA unchanged; two audit destinations and sidecar
+IDs/hashes matched. Initial incorrectly hardcoded local Poppler path was fixed
+in the coordinator's environment; the application correctly reported ENOENT.
 
 Initial Windows sandbox Temp rename/hard-link failures were reproduced and
-resolved with checkout-local test scratch and exclusive-copy publication.
+resolved using checkout-local test scratch and exclusive-copy publication.
+Initial checkpoint CI used the previous workflow without explicit native
+installation and failed; final updated CI result must be checked separately.
 
-## Outstanding
+## Deliberate limits and remaining delivery work
 
-Cross-process CLI/restart/concurrency/error/interruption integration; watched
-folder end-to-end tests; expanded recovery/collision tests; CI, clean-checkout
-README and demo guidance/build; final root review, push and draft PR.
-
-Limits to document: local-machine filesystem (no network-share lock guarantee),
-native Tesseract/Poppler installation, heuristic English invoice extraction,
-no blanket accounting accuracy claim, and no power-loss durability guarantee
-beyond filesystem fsync/rename semantics. Interrupted partial outputs are
-preserved and quarantined rather than overwritten.
+- Local-machine filesystems only; no shared-host/network-share locking promise.
+- English invoice heuristics, no assertion of universal accounting accuracy;
+  ambiguous formats go to review. TIFF images use the first frame; PDF is the
+  multi-page path. Substantial PDF text overlays can hide scanned content from
+  the text-vs-OCR heuristic; README describes forcing OCR via image conversion.
+- Native Tesseract/Poppler required. Resource caps are not OS process-memory
+  sandboxes. Power-loss guarantees depend on filesystem fsync/rename behavior.
+- A hard kill before commit may leave staging data with no audit event. Pending
+  conflicts are preserved/quarantined, not overwritten; no automatic deletion
+  of unrelated data. Source writers should use atomic producer renames.
+- Watch observation/retry counters reset after restart; duplicate memory does
+  not. The event journal grows and is read per intake document.
+- Final GitHub CI confirmation, coordinator review and final PR verification
+  update remain. `attach_artifact` was attempted for PR #2 but the Codex bridge
+  returned MCP -32000; GitHub PR creation and feature-branch push succeeded.

@@ -195,6 +195,8 @@ export function App(): JSX.Element {
           deterministic rules as the CLI decide whether the document files
           itself or waits for a person. Nothing is uploaded anywhere.{" "}
           <a href="https://github.com/mithundas79/doc-intake">Source on GitHub</a>.
+          {" "}This image demo remembers duplicates for this browser session only.
+          The offline CLI adds durable duplicate history, PDF support and safe file copying.
         </p>
       </header>
 
