@@ -39,8 +39,8 @@ duplicate exit 1; original SHA unchanged; two audit destinations and sidecar
 IDs/hashes matched. Initial incorrectly hardcoded local Poppler path was fixed
 in the coordinator's environment; the application correctly reported ENOENT.
 
-Initial Windows sandbox Temp rename/hard-link failures were reproduced and
-resolved using checkout-local test scratch and exclusive-copy publication.
+Tests use checkout-local scratch and exclusive-copy publication for portable
+filesystem verification.
 Initial checkpoint CI used the previous workflow without explicit native
 installation and failed. Retrieved job logs confirm `spawn tesseract ENOENT`
 and `spawn pdfinfo ENOENT`. Updated [CI passed](https://github.com/mithundas79/doc-intake/actions/runs/39616986474) at `0e5530ef`: 41 unit, 11 CLI/watch integration and 4 native OCR/PDF tests, plus TypeScript and demo builds.
@@ -60,4 +60,23 @@ and `spawn pdfinfo ENOENT`. Updated [CI passed](https://github.com/mithundas79/d
 - Watch observation/retry counters reset after restart; duplicate memory does
   not. The event journal grows and is read per intake document.
 - Independent review and GitHub CI passed; PR #2 records the verification evidence.
-  Feature branch is pushed. This follow-up updates documentation only.
+  Feature branch is pushed.
+
+## Guided browser demo follow-up
+
+The actual browser OCR demo now has deliberate sample selection, an explicit
+Run OCR action, resettable session duplicates, visible progress/errors and
+expected clean/incorrect-total outcomes. Samples explicitly state USD. The
+responsive page explains routing predictions, local image processing and CLI
+setup without claiming to move files or detect every extraction error.
+
+Locked worker, WASM and English data are copied into the build (10.45 MiB plus
+license notices). Image limits, decoding/OCR deadlines, object-URL cleanup and
+worker termination bound browser work. Real-OCR Playwright checks target the
+production `/doc-intake/` base path on desktop/mobile, with screenshots/reports.
+The existing Pages deployment gate remains unchanged.
+
+Actual follow-up results so far: demo TypeScript/Vite build passed locally,
+preparing 4 same-origin OCR assets (10.45 MiB), transforming 36 modules. Hosted
+browser verification and regression CI are pending; no unrun test is reported
+as passing. The improved demo is not yet deployed; the public URL serves main.

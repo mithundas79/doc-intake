@@ -35,3 +35,34 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-eng
       - run: npm ci
       - run: npm run test:ocr
+
+  browser:
+    name: real browser OCR and responsive demo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - run: npm ci
+        working-directory: demo
+      - run: npx playwright install --with-deps chromium
+        working-directory: demo
+      - run: npm run test:browser
+        working-directory: demo
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: doc-intake-browser-evidence
+          path: |
+            demo/playwright-report/
+            demo/test-results/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: doc-intake-demo-build
+          path: demo/dist/

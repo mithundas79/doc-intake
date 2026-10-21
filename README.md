@@ -1,25 +1,73 @@
 # doc-intake
 
-**Documents in, order out. Local OCR and deterministic accounting checks.**
+**Local document intake for people who need to see the checks, not just the extracted text.**
 
-An offline TypeScript library and CLI for a single user's invoice folder. It
-extracts fields, checks dates/amounts/duplicates and copies each document into
-`filed/<type>/` or `review/`, with a JSON sidecar and an audit trail. A failed
-check means human review; extraction/storage failures mean a processing error.
-Original documents are preserved by default.
+doc-intake is a TypeScript library and folder-based CLI for bookkeepers,
+developers and individuals organizing invoices on one computer. Give it invoice
+images or PDFs; it proposes structured fields, checks the numbers and routes a
+copy into `filed/<type>/` or `review/`. JSON sidecars and audit records explain
+each decision. Originals stay intact by default.
 
-[Browser image demo](https://mithundas79.github.io/doc-intake/) ·
-[Full-stack review application](https://github.com/mithundas79/doc-intake-service)
+**[Try the browser OCR demo](https://mithundas79.github.io/doc-intake/)** |
+[Feature-branch source](https://github.com/mithundas79/doc-intake/tree/feature/durable-offline-intake)
 
-## Fresh checkout
+The published demo currently follows `main`. The improved guided demo described
+here is prepared in PR #2 and awaits the normal Pages deployment; pushing this
+feature branch alone does not publish it.
 
-Use Node.js 20 or later, native **Tesseract 5** with English traineddata, and
-**Poppler** (`pdfinfo`, `pdftotext`, `pdftoppm`) on PATH. On Ubuntu/Debian:
+| Input | Local CLI output |
+| --- | --- |
+| A folder of image scans or multi-page PDFs | Copied documents under `filed/` or `review/` |
+| A chosen output folder | JSON sidecars with proposed fields, source hashes, actual routes and check reasons |
+| Repeated or watched-folder runs | Persistent duplicate review and recoverable audit history |
+
+Features include native OCR, embedded/scanned PDF extraction, total and
+line-item arithmetic checks, durable duplicates, bounded folder watching,
+collision-safe names and mutation-free previews. A failed check asks for a
+person's review. OCR and English invoice heuristics can miss errors: passing
+checks are not proof of correctness or permission to pay an invoice.
+
+Related projects: [doc-intake-service](https://github.com/mithundas79/doc-intake-service)
+adds a correction/approval UI; [filing-agent](https://github.com/mithundas79/filing-agent)
+provides a local-model controller with evidence checks.
+
+## Try the guided browser demo
+
+The demo runs actual Tesseract OCR and the same `extract`/`check` modules as the
+CLI. Select a sample, then press **Run OCR**:
+
+1. **Clean invoice:** Northwind, USD 677.04. First run: **Would file**. Run it
+   again: duplicate review.
+2. **Reset session:** clears the result and session duplicate memory. Run the
+   clean sample again to get the first-run outcome.
+3. **Incorrect total:** Ridgeway states USD 349.84, but 304.00 + 25.84 = 329.84.
+   The total check should say **Would review**. Inspect the image, proposed
+   fields and rule reasons rather than accepting OCR blindly.
+
+These fictional samples are read live, not prerecorded responses. You can
+also choose a local PNG/JPEG/WebP under 10 MiB and 16 million pixels. The
+browser only predicts routing: it does not copy/move files, write the CLI audit,
+keep duplicates across reloads, or process PDFs.
+
+The built site includes about 10.5 MiB of worker, WebAssembly and English data
+assets. A first OCR run downloads only its device-selected core and language
+data from this site; browser caching can reduce later downloads. **Your images
+are processed on your device and are not uploaded.** An initial network
+connection is needed for the engine assets; fully cached offline browser use
+is not guaranteed. Use the CLI for the offline workflow.
+
+## Fresh-clone local installation
+
+Use **Node.js 20+**, **Tesseract 5 with English traineddata**, and **Poppler**
+(`pdfinfo`, `pdftotext`, `pdftoppm`) on PATH. No Python or paid account is needed.
+Until this work is merged, clone the implemented feature branch.
+
+Ubuntu/Debian:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils
-git clone https://github.com/mithundas79/doc-intake.git
+git clone --branch feature/durable-offline-intake https://github.com/mithundas79/doc-intake.git
 cd doc-intake
 npm ci
 npm run build
@@ -28,216 +76,224 @@ cp samples/northwind-multipage.pdf inbox/
 node dist/cli.js inbox --out out --dry-run
 node dist/cli.js inbox --out out
 node dist/cli.js inbox --out out
-# First real run exits 0 (filed); repeated run exits 1 (duplicate for review).
+# First real run exits 0; repeated run exits 1 for duplicate review.
 ```
 
-On Windows install Tesseract and a Windows Poppler distribution, add their
-binary directories to PATH, and use `New-Item -ItemType Directory inbox` and
-`Copy-Item samples/northwind-multipage.pdf inbox/` for the two filesystem steps.
-`TESSERACT_BIN`, `PDFINFO_BIN`, `PDFTOTEXT_BIN` and `PDFTOPPM_BIN` can each name
-an executable by absolute path. These variables are local configuration; never
-set them from untrusted document content. No Python runtime is needed.
+Windows: install Tesseract 5 including English data and a Windows Poppler
+distribution. Add their binary directories to PATH, open a new PowerShell
+window and verify `tesseract --version`, `pdfinfo -v`, `pdftotext -v`,
+`pdftoppm -v`. Then:
 
-The CLI invokes local tools and does not download traineddata, call an API or
-upload documents. Install dependencies/traineddata before taking it offline.
+```powershell
+git clone --branch feature/durable-offline-intake https://github.com/mithundas79/doc-intake.git
+Set-Location doc-intake
+npm ci
+npm run build
+New-Item -ItemType Directory -Force inbox
+Copy-Item samples/northwind-multipage.pdf inbox/
+node dist/cli.js inbox --out out --dry-run
+node dist/cli.js inbox --out out
+node dist/cli.js inbox --out out
+# First real run: exit 0; repeated run: exit 1 for duplicate review.
+```
 
-## CLI behavior and migration
+`TESSERACT_BIN`, `PDFINFO_BIN`, `PDFTOTEXT_BIN`, `PDFTOPPM_BIN` can name absolute
+executable paths. They are trusted local configuration, never document input.
+The CLI invokes local tools: no API calls, document uploads or first-run model
+download. Install dependencies and traineddata before taking it offline.
+
+## Run the CLI
 
 ```bash
-node dist/cli.js inbox --out out                 # copy originals (default)
+node dist/cli.js inbox --out out                 # copy by default
 node dist/cli.js inbox --out out --keep          # compatible copy alias
-node dist/cli.js inbox --out out --move          # explicitly remove originals after durable output
-node dist/cli.js inbox --out out --dry-run       # compute a preview, no persistent mutations
-node dist/cli.js inbox --out out --watch         # stable-file polling and bounded retries
+node dist/cli.js inbox --out out --move          # explicitly remove sources after durable output
+node dist/cli.js inbox --out out --dry-run       # preview without persistent mutations
+node dist/cli.js inbox --out out --watch         # stable-file polling, bounded retries
 ```
 
-**Intentional change:** older versions moved sources by default. The default
-now copies; use `--move` to opt into deletion. Library callers can also use the
-legacy explicit `keepOriginal: false`; omitting it now preserves the input.
-`--move` and `--keep` conflict. Preview can be combined with `--move`, but not
-with continuous `--watch`.
-
-Preview reads input/state and uses temporary scratch for extraction. It does
-not create/change input files, output directories, audit records, duplicate
-identities or supplied session stores. Its predicted filename/duplicate result
-is a snapshot: a concurrent writer or pending recovery may change the next
-real run's decision.
-
-The first upgraded real run imports a valid pre-upgrade `audit.jsonl` into the
-new journal, keeping an exact backup at `.intake/legacy-audit.jsonl`. Existing
-file/review outputs and sidecars remain intact. Imported filed **and review**
-identities are remembered. Invalid legacy audit content is preserved and
-rejected with a migration error instead of being silently discarded. Back up
-the entire output folder before upgrade; do not edit the journal by hand.
-
-Only top-level regular files with `.png`, `.jpg`, `.jpeg`, `.bmp`, `.webp`,
-`.tif`, `.tiff` or `.pdf` extensions are considered; subfolders, symlinks and
-other extensions are ignored. The library rejects unsupported file types.
+Only top-level regular `.png`, `.jpg`, `.jpeg`, `.bmp`, `.webp`, `.tif`, `.tiff`,
+`.pdf` files are considered. Subfolders, symlinks and other extensions are
+ignored; direct library calls reject unsupported types.
 
 | Exit | Meaning |
 | --- | --- |
-| 0 | All processed documents filed, or no supported files found |
+| 0 | All processed documents filed, or no supported inputs |
 | 1 | At least one document needs review, including duplicates |
-| 2 | Usage, input listing, extraction, storage or permanent watch error; dominates review |
+| 2 | Usage, listing, extraction, storage, recovery or permanent watch error; dominates review |
 
-Preview uses the same outcome codes. Processing errors are printed on stderr
-and recorded as `outcome: "error"` when output storage remains available. Usage,
-listing and lock-acquisition failures may occur before an audit can be written.
-Watch stops gracefully on SIGINT/SIGTERM, finishes its current sweep and uses
-the accumulated exit status. A failed transient attempt followed by success
-stays visible in audit, but does not itself make the final watch exit 2.
+Preview uses the same codes. Processing errors go to stderr and an `error`
+audit event when output storage is available. Usage/listing/lock errors can
+happen before auditing is possible. Watch handles SIGINT/SIGTERM, finishes its
+sweep and uses the accumulated status; a transient attempt followed by success
+remains audited but does not alone cause exit 2.
 
-## Durable identity, routing and recovery
+Preview uses temporary extraction scratch but does not mutate inputs, output
+directories, duplicate state or audit records. `--move` with preview is safe;
+`--watch` with preview and `--move` with `--keep` are rejected. Predictions are
+a snapshot; concurrent writes or pending recovery may affect the next real run.
+
+## Copy-default and state migration
+
+Older versions moved sources by default. **The default now preserves sources.**
+Use `--move` for deletion. Library `keepOriginal: false` still explicitly moves;
+omitting it now copies.
+
+The first upgraded real run imports valid old `audit.jsonl` history and saves
+an exact backup at `.intake/legacy-audit.jsonl`. Existing originals and sidecars
+stay intact. Imported filed and reviewed identities are remembered; even a
+preview before migration consults legacy identities without writing. Invalid
+legacy audit data is preserved and rejected for manual migration. Back up the
+whole output folder before upgrading; do not edit journal files by hand.
+
+## Identity, outputs and recovery
 
 The output root contains `filed/`, `review/`, `audit.jsonl`, and `.intake/`.
-Keep `.intake/` with the documents when moving or backing up the folder.
+Keep `.intake/` with the outputs when moving or backing up a collection.
 
-Two identities are checked: SHA-256 of the exact source bytes, and normalized
-vendor + document number + currency + document type + total. Normalization is
-Unicode NFKC, lowercase and collapsed whitespace. Business identity is claimed
-only with a vendor, number and total; exact-byte identity still works when
-fields are missing. Date is excluded so a changed posting date cannot bypass
-duplicate review. Different totals/currencies/types are separate business
-identities. This is a conservative review signal, not a payment authorization.
+Duplicates match either SHA-256 source bytes or normalized vendor + number +
+currency + type + total. Normalization uses Unicode NFKC, lowercase and collapsed
+whitespace. Business identity requires vendor, number and total; byte identity
+still works with unread fields. Date is excluded so a changed posting date
+cannot bypass review. Different amounts, currencies or types are distinct
+business identities. This is a review signal, not payment authorization.
 
-Both filed and reviewed documents claim identities **after** outputs and the
-sidecar are complete. Rejected OCR/processing attempts do not. Repeating a
-reviewed document sends another copy for review; this CLI does not provide a
-review approval/correction workflow. Start a deliberately separate output
-root for separate duplicate history.
+Both filed and reviewed documents claim identities after complete outputs.
+Failed processing does not. Repeated reviewed documents produce another review
+copy; this CLI has no correction/approval workflow. A separate output folder
+has separate duplicate history.
 
-Routes prefer `filed/<type>/vendor_date_number.ext` or
-`review/original-filename.ext`. If either the document or its sidecar already
-exists, a transaction-specific suffix is added. Existing files are never
-replaced. The actual route, transaction ID and source hash are recorded in the
-sidecar/audit; use those fields instead of guessing filenames.
+Routes prefer `filed/<type>/vendor_date_number.ext` and
+`review/original-filename.ext`. If the document **or** sidecar already exists,
+a transaction suffix is added; unrelated outputs are never replaced. Actual
+routes, transaction IDs and hashes associate sidecars and audit entries.
 
-Writers to one output root serialize under a local PID/token lock. A dead
-owner is recovered automatically; live owners are never evicted based on age.
-Output bytes and pending manifests are synced before source deletion. Pending
-transactions are replayed on the next real run. A conflicting/interrupted
-commit is recovered at CLI startup even when an explicit move emptied the
-inbox. Preview leaves pending state untouched. A conflicting/interrupted
-partial output is preserved and its manifest quarantined under
-`.intake/quarantine/`, with an error event; other intake can continue. Inspect
-the preserved source, staged bytes and error before manually cleaning up.
-The run that encounters a quarantined transaction reports the recovery error
-on stderr and exits 2, even if its newly supplied document files successfully.
+Local PID/token locks serialize output writers and recover dead owners without
+age-based eviction of live writers. Synced pending manifests/output bytes allow
+replay after interruption. CLI startup resumes existing pending commits even
+if an explicit move emptied the inbox; preview leaves them untouched. A partial
+or conflicting output is preserved, the manifest goes to `.intake/quarantine/`
+and the run reports exit 2 while other intake can continue. Inspect the source,
+staged bytes and error before manually cleaning up.
 
-`audit.jsonl` is a recoverable projection of immutable `.intake/events/*.json`
-records. It is replaced atomically under the lock to avoid partial/duplicate
-JSONL records after interruption; events remain the authoritative history.
-A hard kill before an event is committed cannot produce an error receipt.
-If a move source changes during extraction, the new source is preserved and
-`source_cleanup: "source_changed_preserved"` records the skipped deletion.
-Do not concurrently modify move sources or manually edit outputs/state.
+Immutable `.intake/events/*.json` records are the authoritative history.
+`audit.jsonl` is their atomically rebuilt projection, avoiding duplicate/partial
+lines after interrupted appends. A hard kill before commit cannot produce an
+error event. Changed move sources are preserved with
+`source_cleanup: "source_changed_preserved"`; do not modify move inputs while
+they are being handled.
 
-Use a local filesystem with normal exclusive-create/rename semantics; network
-shares and different hosts sharing one output root are unsupported. Files are
-synced, but there is no universal power-loss guarantee across operating systems,
-storage devices and directory-metadata durability. The journal grows with
-history and is read per document; this is a local tool, not a high-volume queue.
+Use a local filesystem with exclusive-create/rename semantics. Network shares
+and multiple hosts sharing state are unsupported. Fsync/rename help recovery
+but cannot guarantee power-loss behavior on every filesystem/device. History
+grows and is read per document; this is a local tool, not a high-volume queue.
 
-## Watch mode
+## Watch behavior
 
-Defaults: 1-second polls, 1-second stable interval, 3 attempts per observed
-file version, and 1/2-second retry delays. Configure with `--poll-ms N`,
+Defaults: polls every second, waits one stable second, attempts a file version
+up to three times with 1/2-second retry delays. Options: `--poll-ms N`,
 `--stable-ms N`, `--retry-ms N`, `--max-attempts N` (positive integers).
-Size, timestamps and bounded content hashes must remain stable across polls.
-Sweeps share one in-flight operation, so OCR cannot overlap a later sweep.
-Changed bytes at an already processed path reset observation/retry state.
-After the final failed attempt, stderr says `error permanent` and that version
-is not retried again; changed content/metadata or restarting watch allows a new
-bounded attempt sequence. Watch observation is in memory; durable duplicate
-history still survives restarts.
+Bounded descriptor snapshots compare size, timestamps and content; changing
+files are retried. Shared in-flight sweeps prevent overlapping processing.
+Changed content at a reused filename resets observation/retry state.
 
-No stability interval proves a producer will never write again. Prefer copying
-to an unsupported temporary extension, then atomically renaming to the final
-extension. Increase the stable interval for slow copies. Inputs that change
-during a bounded snapshot are rejected and retried.
+After the last failure, stderr says `error permanent` and that version stops
+retrying. Content/metadata changes or watch restart allow another bounded
+sequence. Watch observations reset at restart; durable identities do not.
+No stable interval proves a producer will never resume writing: prefer copying
+to an unsupported temporary extension, then atomically renaming the finished
+file. Increase stability time for slow producers.
 
-## PDF, OCR and parsing limits
+## Extraction and parsing limits
 
-- Maximum input: **25 MiB**; PDFs: **20 pages**. Every PDF page is considered.
-  Pages with at least 40 non-whitespace extracted characters use embedded text;
-  sparser pages are rasterized and OCRed. Mixed PDFs can use both paths.
-  A scanned page with a substantial unrelated text overlay may need manual
-  conversion to an image to force full-page OCR.
-- PDF rasterization: at most 2400 pixels on the longest edge; input images:
-  **25 million pixels**. Each native command has a **60-second timeout** and
-  **8 MiB output cap**. Page/pixel/byte limits and deadlines bound normal work;
-  native parsers are not OS memory sandboxes. Use trusted local files and
-  current native-tool packages. TIFF/image containers use the first frame;
-  use PDF for multi-page documents.
-- English, line-based invoice heuristics. PDFs combine all pages into one
-  document; bundles of several invoices should be split first. Repeated
-  headers, subtotals or complex tables may require review.
-- USD (`$`, `USD`), EUR (`€`, `EUR`), GBP (`£`, `GBP`) and INR (`₹`, `INR`,
-  `Rs`/`Rs.` before a number). No indicator retains the legacy USD default;
-  conflicting indicators require review. Dollar notation does not distinguish
-  other dollar currencies. GST is read as tax; complex split GST is not summed
-  automatically.
-- Amounts require a dot and exactly two decimals. Ungrouped, Western grouping
-  (`1,234,567.89`) and Indian grouping (`12,34,567.89`) work. Comma decimals,
-  malformed grouping, percentages and overprecision are rejected as whole
-  tokens. Decimal conventions are never inferred from locale.
-- Long English dates and valid ISO dates normalize to ISO. Numeric
-  `03/04/2026` remains raw for API compatibility but fails the posting-date
-  check. Impossible calendar dates fail. No day/month-order inference.
-- Checks require vendor, number, unambiguous date, subtotal + tax = total,
-  item sums, non-duplicate identity and a recognized type. These accounting
-  heuristics cannot prove authenticity or guarantee every extraction error is
-  caught. Statements/receipts without invoice-like totals need human review.
+- **25 MiB input, 20 PDF pages, 25 million image pixels.** PDF pages with at
+  least 40 non-whitespace extracted characters use embedded text; sparser
+  pages are rasterized/OCRed. Mixed PDFs can use both paths. A scan with a
+  substantial unrelated text overlay may need image conversion to force OCR.
+- PDF rasterization uses at most 2400 pixels on the longest side. Native
+  commands have 60-second deadlines and 8 MiB output caps. These limits are
+  not OS process-memory sandboxes. Image containers use their first frame;
+  use PDF for multiple pages. Split bundles of invoices into separate files.
+- English invoice heuristics can misread complex tables, repeated headers or
+  multiple tax rows. Statements/receipts lacking invoice-style totals need
+  human review. Complex split GST is not summed automatically.
+- USD (`$`, `USD`), EUR (`EUR`, euro symbol), GBP (`GBP`, pound symbol), INR
+  (`INR`, rupee symbol, `Rs`/`Rs.` before digits). Missing currency keeps the
+  legacy USD default; conflicting indicators need review. `$` does not
+  distinguish other dollar currencies.
+- Money needs a dot and exactly two decimals. Ungrouped, Western
+  `1,234,567.89`, and Indian `12,34,567.89` grouping work. Comma decimals,
+  malformed groups, percentages and overprecision are rejected as whole
+  tokens; locale conventions are never guessed.
+- Valid ISO and long English dates normalize to ISO. Numeric `03/04/2026`
+  stays raw for API compatibility but fails the posting-date rule. Impossible
+  calendar dates fail; day/month order is never inferred.
+- Rules check vendor, number, unambiguous date, subtotal + tax, item sums,
+  duplicates and recognized type. They cannot prove authenticity or catch
+  every extraction error. Always review records before financial use.
 
-## Library and browser demo
+## Library and browser development
 
 ```ts
-import { processFile, SessionDuplicateStore } from "doc-intake";
+import { processFile } from "doc-intake";
 const result = await processFile("inbox/scan.pdf", { outRoot: "out" });
 console.log(result.entry.outcome, result.decision.relativePath);
 ```
 
-`extract`, `check`, `decide`, `recognize`, injected `OcrFn`, and session stores
-remain available. `processFile` now always uses output-local durable history;
-`dupes` is an optional additional session store. A custom legacy
-`seenBefore(key)` store works in real processing and may mutate during its
-lookup. Implement optional `has(key)` for non-mutating lookup and preview;
-preview rejects a supplied custom store without `has` instead of mutating it.
-`DocumentRecord.currency` now includes `INR`; exhaustive switches should add it.
-`recognizeDocument(file, limits)` exposes PDF/image limits to library callers.
-
-CLI OCR now uses installed native Tesseract, replacing the earlier Tesseract.js
-first-run download. The browser demo still uses Tesseract.js and fetches its
-WASM/English resources as needed. It accepts images, keeps duplicates in the
-current browser session and writes no filesystem audit. Durable storage,
-watch mode and PDFs are CLI/library features.
+Pure `extract`, `check`, `decide`, `recognize`, injected `OcrFn` and session
+stores remain available. `processFile` always uses durable output-local history;
+optional `dupes` adds session history. Custom `seenBefore(key)` stores work
+in real processing but may mutate during lookup. Add non-mutating `has(key)`
+for previews; preview rejects custom stores without it. Currency now includes
+`INR`; update exhaustive switches. `recognizeDocument(file, limits)` exposes
+PDF/image resource options. `recoverExistingOutput` resumes pending state.
 
 ```bash
 npm ci --prefix demo
-npm --prefix demo run build
 npm --prefix demo run dev
+# Open http://localhost:5173/doc-intake/
+npm --prefix demo run build
+npm --prefix demo run preview -- --host 127.0.0.1 --port 4173
+# Open http://localhost:4173/doc-intake/
 ```
 
-## Verification
+Build preparation copies locked Tesseract.js worker, SIMD/non-SIMD LSTM cores
+and English data into the site (10.45 MiB), with `ocr/LICENSES.txt`. Browser
+workers terminate after a run; image object URLs are revoked, and upload/OCR
+errors do not claim session identity. Native PDF processing, durable history,
+copy/move and filesystem auditing belong to the CLI/library.
+The small browser worker adapter targets the exact locked Tesseract.js 5.1.1
+message protocol so it can own initialization resources and terminate failed
+downloads/deadlines. Dependency upgrades must pass the real-worker success,
+failed-download and deadline/recovery browser checks before publication.
+
+## Tests and verification
 
 ```bash
 npm ci
-npm run build             # TypeScript public library/CLI
-npm test                  # parsing, routing, identity, stability/retry, pipeline regressions
-npm run test:ocr          # actual Tesseract + Poppler on committed rights-safe samples
-npm run test:integration  # actual child CLI processes, filesystem/restart/concurrency/watch
+npm run build
+npm test                    # parsing, identity, routing, retry/stability and filesystem regressions
+npm run test:ocr            # actual native Tesseract/Poppler on committed fictional samples
+npm run test:integration    # separate CLI processes, restart/concurrency and watched folders
 npm ci --prefix demo
 npm --prefix demo run build
+cd demo
+npx playwright install --with-deps chromium
+npm run test:browser        # builds and tests /doc-intake/ in real Chromium
 ```
 
-CI runs these checks on Ubuntu with native tool installation. Integration tests
-cover copy/move/preview, persistent duplicates, collisions, corrupt/oversized
-files, killed lock owners, pending recovery, delayed writes, transient failures,
-bounded permanent errors and reused filenames. See
-[implementation status](docs/implementation-status.md) for exact observed
-results and remaining limitations, and [sample provenance](samples/README.md)
-for fixture sources. No paid service is required.
+CI installs native tools and runs all suites. Browser checks on Ubuntu 24.04
+use real OCR on desktop/mobile: clean, duplicate, reset, incorrect total, bounded
+uploads, keyboard controls, same-origin GET-only engine requests and responsive
+layout. They capture screenshots and upload reports plus the static build as
+workflow artifacts. No OCR responses are mocked.
+
+Pages publication uses the existing `github-pages` environment and branch
+policy. This feature does not relax deployment gates. See
+[implementation status](docs/implementation-status.md) for observed results and
+[sample provenance](samples/README.md) for fixture sources. All samples are
+fictional and rights-safe; no paid service is required.
 
 ## License
 
-MIT © Mithun Das
+MIT - Mithun Das
