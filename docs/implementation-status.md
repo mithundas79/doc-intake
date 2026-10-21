@@ -2,7 +2,8 @@
 
 Branch: `feature/durable-offline-intake`.
 Draft PR: https://github.com/mithundas79/doc-intake/pull/2. Do not merge as part
-of this task. Implementation complete; final Linux CI/independent review pending.
+of this task. Core and guided-demo implementation, CI and independent review
+passed. Publication of the improved demo remains pending the existing Pages gate.
 
 ## Acceptance mapping (2026-10-21)
 
@@ -76,7 +77,37 @@ worker termination bound browser work. Real-OCR Playwright checks target the
 production `/doc-intake/` base path on desktop/mobile, with screenshots/reports.
 The existing Pages deployment gate remains unchanged.
 
-Actual follow-up results so far: demo TypeScript/Vite build passed locally,
-preparing 4 same-origin OCR assets (10.45 MiB), transforming 36 modules. Hosted
-browser verification and regression CI are pending; no unrun test is reported
-as passing. The improved demo is not yet deployed; the public URL serves main.
+Tested implementation: `db4c02ae35c465a808d8eb70727be088a6335909`.
+[Hosted CI run 39634107536](https://github.com/mithundas79/doc-intake/actions/runs/39634107536)
+completed successfully in all three jobs. Actual results:
+
+| Command | Result |
+| --- | --- |
+| Root `npm ci`, `npm run build`, `npm test` | PASS; 41 unit tests. |
+| `npm run test:integration` | PASS; 11 separate-process CLI/watch tests. |
+| `npm run test:ocr` | PASS; 4 real native OCR/PDF tests. |
+| Demo `npm ci`, `npm run build` | PASS; clean lockfile installation, 4 same-origin assets (10.45 MiB), 36 transformed modules. |
+| Demo `npx playwright install --with-deps chromium` | PASS on Ubuntu 24.04. |
+| Demo `npm run test:browser` | PASS; 8 tests in 23.4 seconds across desktop/mobile. |
+
+The browser suite used actual Tesseract recognition, including clean first-run
+filing prediction, duplicate review, reset, incorrect-total review, failed
+language-download recovery and initialization deadline recovery with a browser
+clock. Upload bounds/errors, keyboard selection, same-origin GET-only assets,
+worker disposal and no horizontal overflow were also checked.
+
+Evidence artifacts from that run:
+
+- [Browser report, traces and desktop/mobile screenshots](https://github.com/mithundas79/doc-intake/actions/runs/39634107536/artifacts/12360936385)
+- [Production demo build](https://github.com/mithundas79/doc-intake/actions/runs/39634107536/artifacts/12360891529)
+
+Independent screenshot review confirmed readable desktop clean-result and
+mobile incorrect-total views, actual USD values, 7/7 clean versus 6/7 incorrect
+total checks, and responsive layouts. README/demo sources passed strict UTF-8,
+control/replacement-character and quote-syntax/build checks. The small native
+worker adapter is coupled to exact Tesseract.js 5.1.1; upgrades must retain these
+real-worker lifecycle tests.
+
+The improved demo is not yet deployed; the public URL currently serves main.
+The Pages workflow and environment branch gate remain unchanged. This final
+checkpoint records verification evidence only; it makes no implementation change.
