@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-test("real OCR explains clean, duplicate, reset and incorrect-total outcomes", async ({ page }, info) => {
+test("real OCR explains clean, duplicate, reset and incorrect-total outcomes", async ({ page, baseURL }, info) => {
+  if (!baseURL) throw new Error("Browser verification requires a configured baseURL");
+  const expectedOrigin = new URL(baseURL).origin;
   const requests: { url: string; method: string }[] = [];
   const errors: string[] = [];
   let liveWorkers = 0;
@@ -59,7 +61,7 @@ test("real OCR explains clean, duplicate, reset and incorrect-total outcomes", a
   expect(requests.some((request) => request.url.includes("/doc-intake/ocr/worker.min.js"))).toBe(true);
   expect(requests.some((request) => request.url.includes("tesseract-core") && request.url.endsWith(".wasm.js"))).toBe(true);
   expect(requests.some((request) => request.url.includes("eng.traineddata.gz"))).toBe(true);
-  expect(requests.every((request) => new URL(request.url).origin === "http://127.0.0.1:4173")).toBe(true);
+  expect(requests.every((request) => new URL(request.url).origin === expectedOrigin)).toBe(true);
   expect(requests.every((request) => request.method === "GET")).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
