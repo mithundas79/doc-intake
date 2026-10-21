@@ -1,9 +1,10 @@
 # Durable offline intake — issue #1
 
 Branch: `feature/durable-offline-intake`.
-Draft PR: https://github.com/mithundas79/doc-intake/pull/2. Do not merge as part
-of this task. Core and guided-demo implementation, CI and independent review
-passed. Publication of the improved demo remains pending the existing Pages gate.
+Implementation PR: https://github.com/mithundas79/doc-intake/pull/2.
+Core and guided-demo implementation, CI and independent review passed.
+Release preparation now points installation/source links to main; live
+publication verification remains pending.
 
 ## Acceptance mapping (2026-10-21)
 
@@ -108,6 +109,12 @@ control/replacement-character and quote-syntax/build checks. The small native
 worker adapter is coupled to exact Tesseract.js 5.1.1; upgrades must retain these
 real-worker lifecycle tests.
 
-The improved demo is not yet deployed; the public URL currently serves main.
-The Pages workflow and environment branch gate remain unchanged. This final
-checkpoint records verification evidence only; it makes no implementation change.
+At that verification checkpoint, the improved demo was not yet deployed.
+The Pages workflow and environment branch gate remain unchanged.
+
+## Main-branch release preparation
+
+README clone guidance and the demo's source, installation-guide and local
+setup links now target main. Historical test evidence above is retained.
+This preparation does not change OCR behavior, merge the PR, alter deployment
+policy or claim that live deployment verification has completed.

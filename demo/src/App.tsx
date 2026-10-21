@@ -6,9 +6,9 @@ import { slug } from "../../src/slug.js";
 import { SessionDuplicateStore, type DocumentRecord, type RuleResult } from "../../src/types.js";
 import "./styles.css";
 
-const SOURCE = "https://github.com/mithundas79/doc-intake/tree/feature/durable-offline-intake";
+const SOURCE = "https://github.com/mithundas79/doc-intake/tree/main";
 const LOCAL_COMMANDS = [
-  "git clone --branch feature/durable-offline-intake https://github.com/mithundas79/doc-intake.git",
+  "git clone --branch main https://github.com/mithundas79/doc-intake.git",
   "cd doc-intake", "npm ci", "npm run build",
   "# Create inbox/ and copy samples/northwind-multipage.pdf into it",
   "node dist/cli.js inbox --out out --dry-run", "node dist/cli.js inbox --out out",

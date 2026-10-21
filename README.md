@@ -9,11 +9,7 @@ copy into `filed/<type>/` or `review/`. JSON sidecars and audit records explain
 each decision. Originals stay intact by default.
 
 **[Try the browser OCR demo](https://mithundas79.github.io/doc-intake/)** |
-[Feature-branch source](https://github.com/mithundas79/doc-intake/tree/feature/durable-offline-intake)
-
-The published demo currently follows `main`. The improved guided demo described
-here is prepared in PR #2 and awaits the normal Pages deployment; pushing this
-feature branch alone does not publish it.
+[Source on GitHub](https://github.com/mithundas79/doc-intake/tree/main)
 
 | Input | Local CLI output |
 | --- | --- |
@@ -60,14 +56,14 @@ is not guaranteed. Use the CLI for the offline workflow.
 
 Use **Node.js 20+**, **Tesseract 5 with English traineddata**, and **Poppler**
 (`pdfinfo`, `pdftotext`, `pdftoppm`) on PATH. No Python or paid account is needed.
-Until this work is merged, clone the implemented feature branch.
+Clone the main branch for the complete local workflow.
 
 Ubuntu/Debian:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils
-git clone --branch feature/durable-offline-intake https://github.com/mithundas79/doc-intake.git
+git clone --branch main https://github.com/mithundas79/doc-intake.git
 cd doc-intake
 npm ci
 npm run build
@@ -85,7 +81,7 @@ window and verify `tesseract --version`, `pdfinfo -v`, `pdftotext -v`,
 `pdftoppm -v`. Then:
 
 ```powershell
-git clone --branch feature/durable-offline-intake https://github.com/mithundas79/doc-intake.git
+git clone --branch main https://github.com/mithundas79/doc-intake.git
 Set-Location doc-intake
 npm ci
 npm run build
